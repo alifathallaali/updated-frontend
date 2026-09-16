@@ -1,4 +1,4 @@
-import { createBrowserClient } from "@supabase/ssr";
+import { createClient } from "@supabase/supabase-js";
 
 const supabaseUrl =
   process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
@@ -15,9 +15,8 @@ if (
   typeof window !== "undefined"
 ) {
   console.warn(
-    "⚠️ Supabase env vars are missing — check your Vercel Environment Variables or .env.local."
+    "⚠️ Supabase env vars are missing — check your Vercel Environment Variables."
   );
 }
 
-// createBrowserClient تحفظ الجلسة في الكوكيز تلقائياً لكي يقرأها الـ Middleware
-export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
