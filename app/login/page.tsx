@@ -1,11 +1,172 @@
 "use client";
 export const dynamic = "force-dynamic";
+
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const router = useRouter(); const [mode, setMode] = useState<"signin" | "signup">("signin"); const [email, setEmail] = useState(""); const [password, setPassword] = useState(""); const [error, setError] = useState<string | null>(null); const [info, setInfo] = useState<string | null>(null); const [busy, setBusy] = useState(false);
-  async function submit(e: FormEvent) { e.preventDefault(); setError(null); setInfo(null); setBusy(true); const result = mode === "signin" ? await supabase.auth.signInWithPassword({ email, password }) : await supabase.auth.signUp({ email, password }); setBusy(false); if (result.error) { setError(result.error.message); return; } if (mode === "signin") router.push("/dashboard"); else { setInfo("Account created. Check your inbox if email confirmation is enabled."); setMode("signin"); } }
-  return <main className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950"><div className="hidden w-[43%] flex-col justify-between bg-blue-600 p-10 text-white lg:flex"><div><div className="flex items-center gap-3"><div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15 text-2xl">✦</div><div><div className="text-xl font-bold">PharmaLens</div><div className="text-[10px] tracking-[.18em] text-blue-100">COMMERCIAL INTELLIGENCE</div></div></div><div className="mt-32 max-w-md"><p className="text-sm font-semibold text-blue-100">PHARMACEUTICAL COMMERCIAL TEAMS</p><h1 className="mt-4 text-5xl font-bold leading-[1.08]">From analysis to confident decisions.</h1><p className="mt-6 text-base leading-7 text-blue-100">Bring your data, workflows, and commercial thinking into one intelligent workspace.</p></div></div><div className="text-sm text-blue-100">© {new Date().getFullYear()} PharmaLens AI</div></div><div className="flex flex-1 items-center justify-center px-6 py-12"><div className="w-full max-w-[410px]"><div className="mb-10 lg:hidden"><div className="text-2xl font-bold text-blue-600">✦ PharmaLens</div></div><p className="eyebrow text-blue-600">{mode === "signin" ? "WELCOME BACK" : "GET STARTED"}</p><h2 className="mt-3 text-3xl font-bold tracking-tight">{mode === "signin" ? "Welcome back" : "Create your workspace"}</h2><p className="mt-2 text-sm text-slate-500">{mode === "signin" ? "Sign in to continue your commercial work." : "Start turning pharmaceutical data into decisions."}</p><form onSubmit={submit} className="mt-8 space-y-5"><div><label htmlFor="email" className="mb-1.5 block text-sm font-semibold">Email</label><input id="email" type="email" required value={email} onChange={e => setEmail(e.target.value)} placeholder="you@company.com" className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900" /></div><div><label htmlFor="password" className="mb-1.5 block text-sm font-semibold">Password</label><input id="password" type="password" required minLength={6} value={password} onChange={e => setPassword(e.target.value)} placeholder="••••••••" className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900" /></div>{error && <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">{error}</p>}{info && <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">{info}</p>}<button disabled={busy} className="focus-ring w-full rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-blue-600 disabled:opacity-50">{busy ? "Please wait…" : mode === "signin" ? "Sign in" : "Create account"}</button></form><button type="button" onClick={() => { setMode(mode === "signin" ? "signup" : "signin"); setError(null); setInfo(null); }} className="mt-6 text-sm font-semibold text-blue-600 hover:text-blue-700">{mode === "signin" ? "Need an account? Create one" : "Already have an account? Sign in"}</button></div></div></main>;
+  const router = useRouter();
+  const [mode, setMode] = useState<"signin" | "signup">("signin");
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [info, setInfo] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  async function submit(e: FormEvent) {
+    e.preventDefault();
+    setError(null);
+    setInfo(null);
+    setBusy(true);
+
+    const result =
+      mode === "signin"
+        ? await supabase.auth.signInWithPassword({ email, password })
+        : await supabase.auth.signUp({ email, password });
+
+    setBusy(false);
+
+    if (result.error) {
+      setError(result.error.message);
+      return;
+    }
+
+    if (mode === "signin") {
+      // 1. تحديث الـ Router لفرز الكوكيز الجديدة مع الـ Middleware
+      router.refresh();
+      // 2. التوجيه لصفحة الـ Dashboard
+      router.push("/dashboard");
+    } else {
+      setInfo(
+        "Account created. Check your inbox if email confirmation is enabled."
+      );
+      setMode("signin");
+    }
+  }
+
+  return (
+    <main className="flex min-h-screen bg-[#f7f9fc] dark:bg-slate-950">
+      <div className="hidden w-[43%] flex-col justify-between bg-blue-600 p-10 text-white lg:flex">
+        <div>
+          <div className="flex items-center gap-3">
+            <div className="grid h-11 w-11 place-items-center rounded-2xl bg-white/15 text-2xl">
+              ✦
+            </div>
+            <div>
+              <div className="text-xl font-bold">PharmaLens</div>
+              <div className="text-[10px] tracking-[.18em] text-blue-100">
+                COMMERCIAL INTELLIGENCE
+              </div>
+            </div>
+          </div>
+          <div className="mt-32 max-w-md">
+            <p className="text-sm font-semibold text-blue-100">
+              PHARMACEUTICAL COMMERCIAL TEAMS
+            </p>
+            <h1 className="mt-4 text-5xl font-bold leading-[1.08]">
+              From analysis to confident decisions.
+            </h1>
+            <p className="mt-6 text-base leading-7 text-blue-100">
+              Bring your data, workflows, and commercial thinking into one
+              intelligent workspace.
+            </p>
+          </div>
+        </div>
+        <div className="text-sm text-blue-100">
+          © {new Date().getFullYear()} PharmaLens AI
+        </div>
+      </div>
+
+      <div className="flex flex-1 items-center justify-center px-6 py-12">
+        <div className="w-full max-w-[410px]">
+          <div className="mb-10 lg:hidden">
+            <div className="text-2xl font-bold text-blue-600">✦ PharmaLens</div>
+          </div>
+          <p className="eyebrow text-blue-600">
+            {mode === "signin" ? "WELCOME BACK" : "GET STARTED"}
+          </p>
+          <h2 className="mt-3 text-3xl font-bold tracking-tight">
+            {mode === "signin" ? "Welcome back" : "Create your workspace"}
+          </h2>
+          <p className="mt-2 text-sm text-slate-500">
+            {mode === "signin"
+              ? "Sign in to continue your commercial work."
+              : "Start turning pharmaceutical data into decisions."}
+          </p>
+
+          <form onSubmit={submit} className="mt-8 space-y-5">
+            <div>
+              <label htmlFor="email" className="mb-1.5 block text-sm font-semibold">
+                Email
+              </label>
+              <input
+                id="email"
+                type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="you@company.com"
+                className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
+              />
+            </div>
+            <div>
+              <label
+                htmlFor="password"
+                className="mb-1.5 block text-sm font-semibold"
+              >
+                Password
+              </label>
+              <input
+                id="password"
+                type="password"
+                required
+                minLength={6}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                placeholder="••••••••"
+                className="focus-ring w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm outline-none dark:border-slate-700 dark:bg-slate-900"
+              />
+            </div>
+
+            {error && (
+              <p className="rounded-xl bg-red-50 p-3 text-sm text-red-600">
+                {error}
+              </p>
+            )}
+            {info && (
+              <p className="rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700">
+                {info}
+              </p>
+            )}
+
+            <button
+              disabled={busy}
+              className="focus-ring w-full rounded-xl bg-blue-500 py-3.5 text-sm font-bold text-white shadow-sm hover:bg-blue-600 disabled:opacity-50"
+            >
+              {busy
+                ? "Please wait…"
+                : mode === "signin"
+                ? "Sign in"
+                : "Create account"}
+            </button>
+          </form>
+
+          <button
+            type="button"
+            onClick={() => {
+              setMode(mode === "signin" ? "signup" : "signin");
+              setError(null);
+              setInfo(null);
+            }}
+            className="mt-6 text-sm font-semibold text-blue-600 hover:text-blue-700"
+          >
+            {mode === "signin"
+              ? "Need an account? Create one"
+              : "Already have an account? Sign in"}
+          </button>
+        </div>
+      </div>
+    </main>
+  );
 }
