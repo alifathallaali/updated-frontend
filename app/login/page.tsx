@@ -2,11 +2,9 @@
 export const dynamic = "force-dynamic";
 
 import { useState, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 
 export default function LoginPage() {
-  const router = useRouter();
   const [mode, setMode] = useState<"signin" | "signup">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -33,10 +31,8 @@ export default function LoginPage() {
     }
 
     if (mode === "signin") {
-      // 1. تحديث الـ Router لفرز الكوكيز الجديدة مع الـ Middleware
-      router.refresh();
-      // 2. التوجيه لصفحة الـ Dashboard
-      router.push("/dashboard");
+      // Force a hard window navigation to sync cookies directly with Middleware
+      window.location.href = "/dashboard";
     } else {
       setInfo(
         "Account created. Check your inbox if email confirmation is enabled."
