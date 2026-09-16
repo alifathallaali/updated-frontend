@@ -1,30 +1,62 @@
-import { NextResponse } from "next/server";
-import type { NextRequest } from "next/server";
+import { createServerClient } from "@supabase/ssr";
+import { NextResponse, type NextRequest } from "next/server";
 
-export function middleware(req: NextRequest) {
-  const allCookies = req.cookies.getAll();
-  
-  // الفحص المباشر عن أي كوكيز تحتوي على توكن التسجيل الخاص بـ Supabase
-  const hasSupabaseAuth = allCookies.some((cookie) =>
-    cookie.name.startsWith("sb-") &&
-    (cookie.name.includes("-auth-token") || cookie.name.includes("auth-token"))
-  );
+export async function middleware(request: NextRequest) {
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
+  });
 
-  const { pathname } = req.nextUrl;
-  const isLoginPage = pathname === "/login";
+  const supabaseUrl =
+    process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+  const supabaseAnonKey =
+    process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
+    "placeholder-anon-key";
 
-  // 1. إذا كان المستخدم غير مسجل ويحاول فتح أي صفحة محمية -> توجيهه لصفحة Login
-  if (!hasSupabaseAuth && !isLoginPage) {
-    return NextResponse.redirect(new URL("/login", req.url));
+  const supabase = createServerClient(supabaseUrl, supabaseAnonKey, {
+    cookies: {
+      getAll() {
+        return request.cookies.getAll();
+      },
+      setAll(cookiesToSet) {
+        cookiesToSet.forEach(({ name, value }) =>
+          request.cookies.set(name, value)
+        );
+        response = NextResponse.next({
+          request,
+        });
+        cookiesToSet.forEach(({ name, value, options }) =>
+          response.cookies.set(name, value, options)
+        );
+      },
+    },
+  });
+
+  // Fetch current user from session
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  const isLoginPage = request.nextUrl.pathname === "/login";
+
+  // 1. Unauthenticated user trying to access protected route -> Redirect to /login
+  if (!user && !isLoginPage) {
+    return NextResponse.redirect(new URL("/login", request.url));
   }
 
-  // 2. إذا كان المستخدم مسجلاً بالفعل ويفتح صفحة Login -> توجيهه للـ Dashboard
-  if (hasSupabaseAuth && isLoginPage) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  // 2. Authenticated user trying to access /login -> Redirect to /dashboard
+  if (user && isLoginPage) {
+    return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 
-  return NextResponse.next();
+  return response;
 }
+
+export const config = {
+  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+};
 
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
