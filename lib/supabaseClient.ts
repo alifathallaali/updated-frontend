@@ -1,23 +1,23 @@
-import { createClient } from "@supabase/supabase-js";
+import { createBrowserClient } from "@supabase/ssr";
 
-// قراءة المتغيرات البيئية مع استخدام قيم فحص افتراضية لمنع انهيار عملية البناء (Prerendering/Build)
-const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
+const supabaseUrl =
+  process.env.NEXT_PUBLIC_SUPABASE_URL || "https://placeholder.supabase.co";
 
-// يدعم كلاً من المسميين الشائعين (PUBLISHABLE_KEY أو ANON_KEY)
-const supabasePublishableKey = 
-  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || 
+const supabaseAnonKey =
+  process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY ||
+  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
   "placeholder-anon-key";
 
-// إظهار تحذير في بيئة التطوير والتشغيل فقط إذا كانت القيم الحقيقية مفقودة
 if (
-  (!process.env.NEXT_PUBLIC_SUPABASE_URL || 
-   (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY && !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) &&
+  (!process.env.NEXT_PUBLIC_SUPABASE_URL ||
+    (!process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY &&
+      !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY)) &&
   typeof window !== "undefined"
 ) {
   console.warn(
-    "⚠️ Supabase env vars are missing — check your Vercel Environment Variables or .env.local (NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY / NEXT_PUBLIC_SUPABASE_ANON_KEY)."
+    "⚠️ Supabase env vars are missing — check your Vercel Environment Variables or .env.local."
   );
 }
 
-export const supabase = createClient(supabaseUrl, supabasePublishableKey);
+// createBrowserClient تحفظ الجلسة في الكوكيز تلقائياً لكي يقرأها الـ Middleware
+export const supabase = createBrowserClient(supabaseUrl, supabaseAnonKey);
