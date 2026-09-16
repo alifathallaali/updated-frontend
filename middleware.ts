@@ -1,18 +1,23 @@
-import { NextResponse } from "next/server";
+import { NextResponse } from "next";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const authCookie = req.cookies.get("sb-access-token")?.value;
+  // البحث عن أي كوكيز خاصة بـ Supabase تبدأ بـ sb-
+  const allCookies = req.cookies.getAll();
+  const hasSupabaseAuth = allCookies.some((cookie) =>
+    cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")
+  );
+
   const isLoginPage = req.nextUrl.pathname === "/login";
 
-  // تحويل المستخدم لصفحة Login إذا لم يكن لديه Session
-  if (!authCookie && !isLoginPage) {
+  // 1. إذا لم يكن مسجلاً ويحاول فتح أي صفحة غير Login -> توجيهه لـ Login
+  if (!hasSupabaseAuth && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // تحويل المستخدم المسجل من صفحة Login إلى الصفحة الرئيسية مباشرة
-  if (authCookie && isLoginPage) {
-    return NextResponse.redirect(new URL("/", req.url));
+  // 2. إذا كان مسجلاً ويفتح صفحة Login -> توجيهه للـ Dashboard مباشرة
+  if (hasSupabaseAuth && isLoginPage) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
