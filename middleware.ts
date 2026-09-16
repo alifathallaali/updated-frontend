@@ -1,21 +1,24 @@
-import { NextResponse } from "next";
+import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  // البحث عن أي كوكيز خاصة بـ Supabase تبدأ بـ sb-
   const allCookies = req.cookies.getAll();
+  
+  // الفحص المباشر عن أي كوكيز تحتوي على توكن التسجيل الخاص بـ Supabase
   const hasSupabaseAuth = allCookies.some((cookie) =>
-    cookie.name.startsWith("sb-") && cookie.name.includes("-auth-token")
+    cookie.name.startsWith("sb-") &&
+    (cookie.name.includes("-auth-token") || cookie.name.includes("auth-token"))
   );
 
-  const isLoginPage = req.nextUrl.pathname === "/login";
+  const { pathname } = req.nextUrl;
+  const isLoginPage = pathname === "/login";
 
-  // 1. إذا لم يكن مسجلاً ويحاول فتح أي صفحة غير Login -> توجيهه لـ Login
+  // 1. إذا كان المستخدم غير مسجل ويحاول فتح أي صفحة محمية -> توجيهه لصفحة Login
   if (!hasSupabaseAuth && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // 2. إذا كان مسجلاً ويفتح صفحة Login -> توجيهه للـ Dashboard مباشرة
+  // 2. إذا كان المستخدم مسجلاً بالفعل ويفتح صفحة Login -> توجيهه للـ Dashboard
   if (hasSupabaseAuth && isLoginPage) {
     return NextResponse.redirect(new URL("/dashboard", req.url));
   }
@@ -26,3 +29,5 @@ export function middleware(req: NextRequest) {
 export const config = {
   matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
 };
+
+
