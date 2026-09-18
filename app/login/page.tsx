@@ -21,32 +21,34 @@ export default function LoginPage() {
       });
 
       if (error) {
-        console.error("Login Error:", error.message);
         setStatusMsg({ text: error.message, type: "error" });
         setLoading(false);
         return;
       }
 
       if (data?.session) {
-        // 1. Show immediate success feedback on screen
+        // 1. Manually set cookie so middleware can read it immediately
+        const maxAge = data.session.expires_in || 3600;
+        document.cookie = `sb-access-token=${data.session.access_token}; path=/; max-age=${maxAge}; SameSite=Lax; Secure`;
+
+        // 2. Show success banner
         setStatusMsg({
-          text: `Welcome back, ${data.user.email}! Redirecting to dashboard...`,
+          text: `Logged in successfully! Redirecting...`,
           type: "success",
         });
 
-        // 2. Perform a clean hard redirect to write tokens to storage and load dashboard
+        // 3. Force hard browser navigation to trigger middleware refresh
         setTimeout(() => {
-          window.location.assign("/dashboard");
-        }, 1000);
+          window.location.href = "/dashboard";
+        }, 600);
       } else {
         setStatusMsg({
-          text: "Authentication succeeded, but no active session was returned.",
+          text: "Authentication succeeded, but no session was returned.",
           type: "error",
         });
         setLoading(false);
       }
     } catch (err: any) {
-      console.error("Unexpected Error:", err);
       setStatusMsg({
         text: err?.message || "An unexpected error occurred. Please try again.",
         type: "error",
