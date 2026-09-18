@@ -2,22 +2,31 @@ import { NextResponse } from "next/server";
 import type { NextRequest } from "next/server";
 
 export function middleware(req: NextRequest) {
-  const authCookie = req.cookies.get("sb-access-token")?.value;
+  const token = req.cookies.get("sb-access-token")?.value;
   const isLoginPage = req.nextUrl.pathname === "/login";
 
-  // تحويل المستخدم لصفحة Login إذا لم يكن لديه Session
-  if (!authCookie && !isLoginPage) {
+  // 1. Unauthenticated users trying to access protected routes -> Redirect to Login
+  if (!token && !isLoginPage) {
     return NextResponse.redirect(new URL("/login", req.url));
   }
 
-  // تحويل المستخدم المسجل من صفحة Login إلى الصفحة الرئيسية مباشرة
-  if (authCookie && isLoginPage) {
-    return NextResponse.redirect(new URL("/", req.url));
+  // 2. Authenticated users trying to access Login page -> Redirect to Dashboard
+  if (token && isLoginPage) {
+    return NextResponse.redirect(new URL("/dashboard", req.url));
   }
 
   return NextResponse.next();
 }
 
 export const config = {
-  matcher: ["/((?!api|_next/static|_next/image|favicon.ico).*)"],
+  matcher: [
+    /*
+     * Match all request paths except:
+     * - _next/static (static files)
+     * - _next/image (image optimization files)
+     * - favicon.ico (favicon file)
+     * - api routes (if handled separately)
+     */
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
+  ],
 };
