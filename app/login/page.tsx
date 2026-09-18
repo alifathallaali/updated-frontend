@@ -7,12 +7,12 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
+  const [statusMsg, setStatusMsg] = useState<{ text: string; type: "error" | "success" } | null>(null);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
-    setErrorMsg("");
+    setStatusMsg(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -21,22 +21,36 @@ export default function LoginPage() {
       });
 
       if (error) {
-        console.error("Login failed:", error.message);
-        setErrorMsg(error.message);
+        console.error("Login Error:", error.message);
+        setStatusMsg({ text: error.message, type: "error" });
         setLoading(false);
         return;
       }
 
       if (data?.session) {
-        // Forces a full page load to ensure LocalStorage token is recognized
-        window.location.href = "/dashboard";
+        // 1. Show immediate success feedback on screen
+        setStatusMsg({
+          text: `Welcome back, ${data.user.email}! Redirecting to dashboard...`,
+          type: "success",
+        });
+
+        // 2. Perform a clean hard redirect to write tokens to storage and load dashboard
+        setTimeout(() => {
+          window.location.assign("/dashboard");
+        }, 1000);
       } else {
-        setErrorMsg("Session missing. Please try signing in again.");
+        setStatusMsg({
+          text: "Authentication succeeded, but no active session was returned.",
+          type: "error",
+        });
         setLoading(false);
       }
     } catch (err: any) {
-      console.error("Unexpected error:", err);
-      setErrorMsg(err?.message || "An error occurred during sign in.");
+      console.error("Unexpected Error:", err);
+      setStatusMsg({
+        text: err?.message || "An unexpected error occurred. Please try again.",
+        type: "error",
+      });
       setLoading(false);
     }
   };
@@ -47,9 +61,15 @@ export default function LoginPage() {
         <h1 className="text-2xl font-bold text-slate-900">Welcome back</h1>
         <p className="mt-1 text-sm text-slate-500">Sign in to continue your commercial work.</p>
 
-        {errorMsg && (
-          <div className="mt-4 rounded-xl bg-red-50 p-3 text-sm font-medium text-red-600">
-            {errorMsg}
+        {statusMsg && (
+          <div
+            className={`mt-4 rounded-xl p-3 text-sm font-medium ${
+              statusMsg.type === "success"
+                ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                : "bg-red-50 text-red-600 border border-red-200"
+            }`}
+          >
+            {statusMsg.text}
           </div>
         )}
 
