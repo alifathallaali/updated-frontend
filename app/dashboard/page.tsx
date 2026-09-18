@@ -1,7 +1,5 @@
 "use client";
 
-export const dynamic = "force-dynamic";
-
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
@@ -48,6 +46,7 @@ export default function DashboardPage() {
 
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
+        document.cookie = "sb-access-token=; path=/; max-age=0;";
         window.location.href = "/login";
         return;
       }
@@ -94,6 +93,7 @@ export default function DashboardPage() {
 
   async function signOut() {
     await supabase.auth.signOut();
+    document.cookie = "sb-access-token=; path=/; max-age=0;";
     window.location.href = "/login";
   }
 
@@ -103,7 +103,6 @@ export default function DashboardPage() {
     document.getElementById("analysis-prompt")?.focus();
   }
 
-  // Prevents HTML/hydration mismatch during login transitions
   if (!mounted) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-slate-50 dark:bg-slate-900">
