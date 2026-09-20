@@ -6,11 +6,7 @@ import { useRouter } from "next/navigation";
 import * as tus from "tus-js-client";
 import { supabase } from "@/lib/supabaseClient";
 
-const API_URL = (
-  process.env.NEXT_PUBLIC_API_URL ||
-  process.env.NEXT_PUBLIC_API_BASE_URL ||
-  "https://updated-backend-210c.onrender.com"
-).replace(/\/+$/, "");
+const API_URL = process.env.NEXT_PUBLIC_API_URL || "/api-backend";
 
 type Workspace = { id: number; name: string };
 
