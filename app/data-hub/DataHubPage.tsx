@@ -12,13 +12,15 @@ const API_URL = (
   "https://updated-backend-210c.onrender.com"
 ).replace(/\/+$/, "");
 
+type Workspace = { id: number; name: string };
+
 async function authenticatedFetch(path: string, options: RequestInit = {}) {
   const {
     data: { session },
   } = await supabase.auth.getSession();
 
   if (!session?.access_token) {
-    throw new Error("Login مش مسجل دخول — يرجى تسجيل الدخول أولاً");
+    throw new Error("مش مسجل دخول — يرجى تسجيل الدخول أولاً");
   }
 
   const headers = new Headers(options.headers);
@@ -37,40 +39,69 @@ export function DataHubPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  const [workspaceId, setWorkspaceId] = useState("1");
+  
+  // التحكم في مساحات العمل الديناميكية
+  const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
+  const [workspaceId, setWorkspaceId] = useState<string>("");
+  
   const [datasets, setDatasets] = useState<any[]>([]);
   const [jobId, setJobId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const activeUpload = useRef<tus.Upload | null>(null);
 
-  // التأكد من حالة تسجيل الدخول وتحميل البيانات عند البداية
+  // 1. التحقق من تسجيل الدخول وجلب مساحات العمل المتاحة للمستخدم
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
         router.replace("/login");
         return;
       }
-      loadDatasets();
+      loadWorkspaces();
     });
-  }, [workspaceId]);
+  }, []);
 
-  async function loadDatasets() {
+  // 2. تحميل مساحات العمل واختيار الأولى تلقائياً
+  async function loadWorkspaces() {
     try {
+      const res = await authenticatedFetch("/api/workspaces");
+      if (res.ok) {
+        const ws: Workspace[] = await res.json();
+        setWorkspaces(ws);
+        if (ws.length > 0) {
+          setWorkspaceId(String(ws[0].id));
+        } else {
+          setError("لا توجد مساحات عمل (Workspaces) مرتبطة بحسابك. يرجى إنشاء مساحة أولاً من Dashboard.");
+        }
+      } else {
+        setError("تعذر جلب مساحات العمل الخاصة بك.");
+      }
+    } catch (e: any) {
+      setError(e.message || "خطأ في الاتصال بالسيرفر");
+    }
+  }
+
+  // 3. جلب الداتاسيتس الخاصة بالـ Workspace المحدد
+  async function loadDatasets() {
+    if (!workspaceId) return;
+    try {
+      setError("");
       const res = await authenticatedFetch(`/api/v1/datasets?workspace_id=${workspaceId}`);
       if (res.ok) {
         setDatasets(await res.json());
       } else {
         const errData = await res.json().catch(() => ({}));
-        if (res.status === 401) {
-          setError("انتهت الجلسة. يرجى إعادة تسجيل الدخول.");
-        } else {
-          setError(errData.detail || `فشل جلب الداتاسيتس (${res.status})`);
-        }
+        setError(errData.detail || `فشل جلب البيانات (${res.status})`);
       }
     } catch (e: any) {
       setError(e.message || "تعذر الاتصال بالخادم");
     }
   }
+
+  useEffect(() => {
+    if (workspaceId) {
+      loadDatasets();
+    }
+  }, [workspaceId]);
 
   function resumableUpload(selected: File, upload: any) {
     return new Promise<void>((resolve, reject) => {
@@ -126,7 +157,7 @@ export function DataHubPage() {
   }
 
   async function handleUpload() {
-    if (!file) return;
+    if (!file || !workspaceId) return;
     setBusy(true);
     setError("");
     setProgress(0);
@@ -228,12 +259,19 @@ export function DataHubPage() {
         </div>
 
         <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <label className="mb-2 block text-sm text-slate-400">Workspace ID</label>
-          <input
+          <label className="mb-2 block text-sm text-slate-400">اختر مساحة العمل (Workspace)</label>
+          <select
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
-            className="mb-4 rounded-lg border border-slate-700 bg-slate-800 px-3 py-2 text-white"
-          />
+            className="mb-4 w-full rounded-lg border border-slate-700 bg-slate-800 px-3 py-2.5 text-white outline-none focus:border-cyan-500"
+          >
+            {workspaces.map((w) => (
+              <option key={w.id} value={w.id}>
+                {w.name} (ID: {w.id})
+              </option>
+            ))}
+          </select>
+
           <input
             type="file"
             accept=".xlsx,.xls,.csv,.parquet"
@@ -244,7 +282,7 @@ export function DataHubPage() {
           <div className="mt-4 flex flex-wrap gap-3">
             <button
               onClick={handleUpload}
-              disabled={busy || !file}
+              disabled={busy || !file || !workspaceId}
               className="rounded-lg bg-cyan-600 px-6 py-2.5 font-semibold text-white transition hover:bg-cyan-500 disabled:cursor-not-allowed disabled:opacity-40"
             >
               🚀 ارفع وحلّل
