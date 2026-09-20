@@ -35,17 +35,15 @@ export function DataHubPage() {
   const [status, setStatus] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
-  
-  // التحكم في مساحات العمل الديناميكية
+
   const [workspaces, setWorkspaces] = useState<Workspace[]>([]);
   const [workspaceId, setWorkspaceId] = useState<string>("");
-  
+
   const [datasets, setDatasets] = useState<any[]>([]);
   const [jobId, setJobId] = useState<number | null>(null);
   const [progress, setProgress] = useState(0);
   const activeUpload = useRef<tus.Upload | null>(null);
 
-  // 1. التحقق من تسجيل الدخول وجلب مساحات العمل المتاحة للمستخدم
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (!session) {
@@ -56,7 +54,6 @@ export function DataHubPage() {
     });
   }, []);
 
-  // 2. تحميل مساحات العمل واختيار الأولى تلقائياً
   async function loadWorkspaces() {
     try {
       const res = await authenticatedFetch("/api/workspaces");
@@ -76,7 +73,6 @@ export function DataHubPage() {
     }
   }
 
-  // 3. جلب الداتاسيتس الخاصة بالـ Workspace المحدد
   async function loadDatasets() {
     if (!workspaceId) return;
     try {
@@ -101,19 +97,26 @@ export function DataHubPage() {
 
   function resumableUpload(selected: File, upload: any) {
     return new Promise<void>((resolve, reject) => {
+      // إعداد Authorization Token بالشكل الدقيق الذي تطلبه Supabase Resumable Storage
+      const token = upload.token;
+      const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
+
       const instance = new tus.Upload(selected, {
         endpoint: upload.endpoint,
-        headers: { "x-signature": upload.token },
-        metadata: {
-          bucketName: upload.bucket,
-          objectName: upload.key,
-          fileName: selected.name,
-          contentType: selected.type || "application/octet-stream",
+        headers: {
+          Authorization: authHeader,
+          "x-upsert": "true",
         },
         uploadDataDuringCreation: true,
         removeFingerprintOnSuccess: true,
         chunkSize: 6 * 1024 * 1024,
         retryDelays: [0, 3000, 5000, 10000, 20000],
+        metadata: {
+          bucketName: upload.bucket || "datasets",
+          objectName: upload.key,
+          contentType: selected.type || "application/octet-stream",
+          cacheControl: "3600",
+        },
         onProgress: (sent, total) => {
           const pct = Math.round((sent / total) * 100);
           setProgress(pct);
@@ -128,11 +131,15 @@ export function DataHubPage() {
           resolve();
         },
       });
+
       activeUpload.current = instance;
-      instance.findPreviousUploads().then((previous) => {
-        if (previous.length) instance.resumeFromPreviousUpload(previous[0]);
-        instance.start();
-      }).catch(reject);
+      instance
+        .findPreviousUploads()
+        .then((previous) => {
+          if (previous.length) instance.resumeFromPreviousUpload(previous[0]);
+          instance.start();
+        })
+        .catch(reject);
     });
   }
 
@@ -180,11 +187,13 @@ export function DataHubPage() {
 
       setJobId(session.jobId);
 
-      if (session.upload.method === "TUS") {
+      if (session.upload && session.upload.method === "TUS") {
         await resumableUpload(file, session.upload);
-      } else {
+      } else if (session.upload && session.upload.url) {
         const putRes = await fetch(session.upload.url, { method: "PUT", body: file });
         if (!putRes.ok) throw new Error(`رفع الملف فشل (${putRes.status})`);
+      } else {
+        throw new Error("بيانات جلسة الرفع غير مكتملة من السيرفر");
       }
 
       setStatus("تأكيد الرفع وبدء المعالجة...");
