@@ -1,47 +1,33 @@
-"use client";
+'use client';
 
-import dynamic from "next/dynamic";
+import dynamic from 'next/dynamic';
+import type { EChartsOption } from 'echarts';
+import type { ChartSpec } from '@/lib/visualization/chart-spec';
 
-const ReactECharts = dynamic(() => import("echarts-for-react"), { ssr: false });
+const ReactECharts = dynamic(() => import('echarts-for-react'), { ssr: false });
 
-type ChartSpec = {
-  chart_type: string;
-  title: string;
-  description?: string | null;
-  x_key?: string | null;
-  series: Array<{ data_key: string; label: string; unit?: string | null }>;
-  data: Record<string, unknown>[];
-};
-
-function toOption(spec: ChartSpec) {
-  const categories = spec.x_key ? spec.data.map((row) => row[spec.x_key!]) : [];
-  const isCategory = ["bar", "line", "area"].includes(spec.chart_type);
+function toOption(spec: ChartSpec): EChartsOption {
+  const rows = spec.data ?? [];
+  const xKey = spec.xKey;
+  const labels = rows.map((r: any) => r[xKey]);
+  const series = (spec.series ?? []).map((s: any) => ({
+    name: s.label ?? s.dataKey,
+    type: spec.chartType === 'line' ? 'line' : spec.chartType === 'scatter' ? 'scatter' : 'bar',
+    data: rows.map((r: any) => r[s.dataKey]),
+    smooth: spec.chartType === 'line',
+    emphasis: { focus: 'series' },
+  }));
   return {
-    tooltip: { trigger: isCategory ? "axis" : "item" },
-    legend: { top: 0 },
-    grid: { left: 24, right: 24, top: 44, bottom: 28, containLabel: true },
-    xAxis: spec.chart_type === "scatter" ? { type: "value" } : { type: "category", data: categories },
-    yAxis: { type: "value" },
-    series: spec.series.map((s) => ({
-      name: s.label,
-      type: spec.chart_type === "area" ? "line" : spec.chart_type,
-      smooth: spec.chart_type === "line" || spec.chart_type === "area",
-      areaStyle: spec.chart_type === "area" ? {} : undefined,
-      data: spec.chart_type === "scatter"
-        ? spec.data.map((row) => [row[spec.x_key ?? "x"], row[s.data_key]])
-        : spec.data.map((row) => row[s.data_key]),
-    })),
+    title: { text: spec.meta?.title, subtext: spec.meta?.description },
+    tooltip: { trigger: spec.chartType === 'scatter' ? 'item' : 'axis' },
+    legend: series.length > 1 ? { top: 8 } : undefined,
+    grid: { left: 48, right: 24, top: 72, bottom: 44, containLabel: true },
+    xAxis: { type: spec.chartType === 'scatter' ? 'value' : 'category', data: spec.chartType === 'scatter' ? undefined : labels },
+    yAxis: { type: 'value' },
+    series,
   };
 }
 
 export function PharmaChart({ spec }: { spec: ChartSpec }) {
-  return (
-    <div className="w-full rounded-xl border bg-card p-4 shadow-sm">
-      <div className="mb-3">
-        <h3 className="text-base font-semibold">{spec.title}</h3>
-        {spec.description && <p className="text-sm text-muted-foreground">{spec.description}</p>}
-      </div>
-      <ReactECharts option={toOption(spec)} style={{ height: 360, width: "100%" }} notMerge lazyUpdate />
-    </div>
-  );
+  return <ReactECharts option={toOption(spec) as any} notMerge lazyUpdate style={{ height: 360, width: '100%' }} />;
 }
