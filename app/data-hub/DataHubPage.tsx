@@ -148,7 +148,7 @@ export function DataHubPage() {
 
   async function pollJob(id: number) {
     for (let i = 0; i < 900; i++) {
-      const res = await authenticatedFetch(`/api/upload-sessions/${id}`);
+      const res = await authenticatedFetch(`/api/upload-jobs/${id}`);
       if (!res.ok) throw new Error("تعذر قراءة حالة المعالجة");
       const job = await res.json();
       setProgress(job.progress || 0);
@@ -176,7 +176,7 @@ export function DataHubPage() {
       const idem = `${file.name}:${file.size}:${file.lastModified}`;
       setStatus("إنشاء جلسة رفع آمنة على Supabase...");
 
-      const sessionRes = await authenticatedFetch("/api/upload-sessions", {
+      const sessionRes = await authenticatedFetch("/api/upload-jobs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -209,7 +209,7 @@ export function DataHubPage() {
       }
 
       setStatus("تأكيد الرفع وبدء المعالجة...");
-      const completeRes = await authenticatedFetch("/api/upload-sessions/complete", {
+      const completeRes = await authenticatedFetch("/api/upload-jobs/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -239,7 +239,7 @@ export function DataHubPage() {
   async function cancelUpload() {
     activeUpload.current?.abort(true);
     if (jobId) {
-      await authenticatedFetch(`/api/upload-sessions/${jobId}/cancel`, {
+      await authenticatedFetch(`/api/upload-jobs/${jobId}/cancel`, {
         method: "POST",
       }).catch(() => {});
     }
@@ -252,7 +252,7 @@ export function DataHubPage() {
     setBusy(true);
     setError("");
     try {
-      await authenticatedFetch(`/api/upload-sessions/${jobId}/retry`, {
+      await authenticatedFetch(`/api/upload-jobs/${jobId}/retry`, {
         method: "POST",
       });
       await pollJob(jobId);
