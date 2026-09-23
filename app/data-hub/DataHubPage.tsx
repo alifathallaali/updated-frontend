@@ -63,9 +63,7 @@ export function DataHubPage() {
         if (ws.length > 0) {
           setWorkspaceId(String(ws[0].id));
         } else {
-          setError(
-            "لا توجد مساحات عمل (Workspaces) مرتبطة بحسابك. يرجى إنشاء مساحة أولاً من Dashboard."
-          );
+          setError("لا توجد مساحات عمل (Workspaces) مرتبطة بحسابك. يرجى إنشاء مساحة أولاً من Dashboard.");
         }
       } else {
         setError("تعذر جلب مساحات العمل الخاصة بك.");
@@ -79,9 +77,7 @@ export function DataHubPage() {
     if (!workspaceId) return;
     try {
       setError("");
-      const res = await authenticatedFetch(
-        `/api/v1/datasets?workspace_id=${workspaceId}`
-      );
+      const res = await authenticatedFetch(`/api/v1/datasets?workspace_id=${workspaceId}`);
       if (res.ok) {
         setDatasets(await res.json());
       } else {
@@ -101,6 +97,7 @@ export function DataHubPage() {
 
   function resumableUpload(selected: File, upload: any) {
     return new Promise<void>((resolve, reject) => {
+      // إعداد Authorization Token بالشكل الدقيق الذي تطلبه Supabase Resumable Storage
       const token = upload.token;
       const authHeader = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
 
@@ -148,7 +145,7 @@ export function DataHubPage() {
 
   async function pollJob(id: number) {
     for (let i = 0; i < 900; i++) {
-      const res = await authenticatedFetch(`/api/upload-jobs/${id}`);
+      const res = await authenticatedFetch(`/api/upload-sessions/${id}`);
       if (!res.ok) throw new Error("تعذر قراءة حالة المعالجة");
       const job = await res.json();
       setProgress(job.progress || 0);
@@ -159,9 +156,7 @@ export function DataHubPage() {
       }
       await new Promise((r) => setTimeout(r, 2000));
     }
-    throw new Error(
-      "المعالجة أخذت وقتًا أطول من المتوقع؛ يمكنك متابعة الحالة لاحقًا."
-    );
+    throw new Error("المعالجة أخذت وقتًا أطول من المتوقع؛ يمكنك متابعة الحالة لاحقًا.");
   }
 
   async function handleUpload() {
@@ -170,13 +165,12 @@ export function DataHubPage() {
     setError("");
     setProgress(0);
     try {
-      if (file.size > 500 * 1024 * 1024)
-        throw new Error("الحد الأقصى لحجم الملف 500 MB");
+      if (file.size > 500 * 1024 * 1024) throw new Error("الحد الأقصى لحجم الملف 500 MB");
 
       const idem = `${file.name}:${file.size}:${file.lastModified}`;
       setStatus("إنشاء جلسة رفع آمنة على Supabase...");
 
-      const sessionRes = await authenticatedFetch("/api/upload-jobs", {
+      const sessionRes = await authenticatedFetch("/api/upload-sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -189,27 +183,21 @@ export function DataHubPage() {
       });
 
       const session = await sessionRes.json().catch(() => ({}));
-      if (!sessionRes.ok)
-        throw new Error(
-          session.detail || `إنشاء جلسة الرفع فشل (${sessionRes.status})`
-        );
+      if (!sessionRes.ok) throw new Error(session.detail || `إنشاء جلسة الرفع فشل (${sessionRes.status})`);
 
       setJobId(session.jobId);
 
       if (session.upload && session.upload.method === "TUS") {
         await resumableUpload(file, session.upload);
       } else if (session.upload && session.upload.url) {
-        const putRes = await fetch(session.upload.url, {
-          method: "PUT",
-          body: file,
-        });
+        const putRes = await fetch(session.upload.url, { method: "PUT", body: file });
         if (!putRes.ok) throw new Error(`رفع الملف فشل (${putRes.status})`);
       } else {
         throw new Error("بيانات جلسة الرفع غير مكتملة من السيرفر");
       }
 
       setStatus("تأكيد الرفع وبدء المعالجة...");
-      const completeRes = await authenticatedFetch("/api/upload-jobs/complete", {
+      const completeRes = await authenticatedFetch("/api/upload-sessions/complete", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -220,8 +208,7 @@ export function DataHubPage() {
         }),
       });
 
-      if (!completeRes.ok)
-        throw new Error(`تأكيد الرفع فشل (${completeRes.status})`);
+      if (!completeRes.ok) throw new Error(`تأكيد الرفع فشل (${completeRes.status})`);
 
       await pollJob(session.jobId);
       setProgress(100);
@@ -239,9 +226,7 @@ export function DataHubPage() {
   async function cancelUpload() {
     activeUpload.current?.abort(true);
     if (jobId) {
-      await authenticatedFetch(`/api/upload-jobs/${jobId}/cancel`, {
-        method: "POST",
-      }).catch(() => {});
+      await authenticatedFetch(`/api/upload-sessions/${jobId}/cancel`, { method: "POST" }).catch(() => {});
     }
     setBusy(false);
     setStatus("تم طلب إلغاء الرفع/المعالجة");
@@ -252,9 +237,7 @@ export function DataHubPage() {
     setBusy(true);
     setError("");
     try {
-      await authenticatedFetch(`/api/upload-jobs/${jobId}/retry`, {
-        method: "POST",
-      });
+      await authenticatedFetch(`/api/upload-sessions/${jobId}/retry`, { method: "POST" });
       await pollJob(jobId);
       await loadDatasets();
       setStatus("✅ تمت إعادة المحاولة بنجاح");
@@ -281,9 +264,7 @@ export function DataHubPage() {
         </div>
 
         <div className="mb-6 rounded-xl border border-slate-800 bg-slate-900/60 p-6">
-          <label className="mb-2 block text-sm text-slate-400">
-            اختر مساحة العمل (Workspace)
-          </label>
+          <label className="mb-2 block text-sm text-slate-400">اختر مساحة العمل (Workspace)</label>
           <select
             value={workspaceId}
             onChange={(e) => setWorkspaceId(e.target.value)}
@@ -312,18 +293,12 @@ export function DataHubPage() {
               🚀 ارفع وحلّل
             </button>
             {busy && (
-              <button
-                onClick={cancelUpload}
-                className="rounded-lg border border-rose-700 px-5 py-2.5 text-rose-300"
-              >
+              <button onClick={cancelUpload} className="rounded-lg border border-rose-700 px-5 py-2.5 text-rose-300">
                 إلغاء
               </button>
             )}
             {!busy && error && jobId && (
-              <button
-                onClick={retryUpload}
-                className="rounded-lg border border-amber-700 px-5 py-2.5 text-amber-300"
-              >
+              <button onClick={retryUpload} className="rounded-lg border border-amber-700 px-5 py-2.5 text-amber-300">
                 إعادة المحاولة
               </button>
             )}
@@ -333,17 +308,12 @@ export function DataHubPage() {
             <>
               <p className="mt-4 animate-pulse text-cyan-300">{status}</p>
               <div className="mt-3 h-2 overflow-hidden rounded-full bg-slate-800">
-                <div
-                  className="h-full bg-cyan-500 transition-all"
-                  style={{ width: `${progress}%` }}
-                />
+                <div className="h-full bg-cyan-500 transition-all" style={{ width: `${progress}%` }} />
               </div>
             </>
           )}
 
-          {!busy && status && (
-            <p className="mt-4 font-semibold text-emerald-400">{status}</p>
-          )}
+          {!busy && status && <p className="mt-4 font-semibold text-emerald-400">{status}</p>}
           {error && (
             <p className="mt-4 whitespace-pre-wrap break-all rounded-lg border border-rose-800 bg-rose-950/40 p-3 text-sm text-rose-400">
               {error}
@@ -362,10 +332,7 @@ export function DataHubPage() {
           ) : (
             <ul className="space-y-2">
               {datasets.map((d: any) => (
-                <li
-                  key={d.id}
-                  className="flex items-center justify-between rounded-lg bg-slate-800/60 p-3"
-                >
+                <li key={d.id} className="flex items-center justify-between rounded-lg bg-slate-800/60 p-3">
                   <span className="font-medium">{d.name}</span>
                   <div className="flex items-center gap-3">
                     <span className="text-xs text-slate-500">
